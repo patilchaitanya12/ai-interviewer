@@ -20,6 +20,7 @@ export class InterviewService {
   private ocrInterval: ReturnType<typeof setInterval> | null = null
   private videoRef: HTMLVideoElement | null = null
   private onStateChange: (session: Partial<InterviewSession>) => void
+  get sttService() { return this.stt }
   private logs: string[] = []
 
   constructor(onStateChange: (session: Partial<InterviewSession>) => void) {
@@ -125,7 +126,7 @@ export class InterviewService {
 
       let transcript = ''
       try {
-        transcript = await this.stt.listen()
+        transcript = await this.stt.listen(4000, 60000)
         this.log(`💬 Answer received: "${transcript.slice(0, 60)}..."`)
       } catch {
         transcript = 'No answer provided'

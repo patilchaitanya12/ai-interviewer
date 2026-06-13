@@ -3,6 +3,7 @@ import type { InterviewSession } from '../types/interview.types'
 
 interface Props {
   session: InterviewSession
+  onStopListening?: () => void
 }
 
 const STATUS_MESSAGE: Record<string, string> = {
@@ -15,7 +16,7 @@ const STATUS_MESSAGE: Record<string, string> = {
   complete:    'Interview complete!',
 }
 
-export function InterviewChat({ session }: Props) {
+export function InterviewChat({ session, onStopListening }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const logBottomRef = useRef<HTMLDivElement>(null)
   const [showLogs, setShowLogs] = useState(false)
@@ -70,6 +71,11 @@ export function InterviewChat({ session }: Props) {
             <span className="status-blink">▋</span>
             {STATUS_MESSAGE[session.status]}
           </div>
+          {session.status === 'listening' && onStopListening && (
+            <button className="done-answering-btn" onClick={onStopListening}>
+              ✓ Done Answering
+            </button>
+          )}
           <div ref={bottomRef} />
         </div>
       )}

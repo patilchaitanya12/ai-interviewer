@@ -5,13 +5,14 @@ import { InterviewChat } from './components/InterviewChat'
 import { FeedbackReport } from './components/FeedbackReport'
 import { StatusIndicator } from './components/StatusIndicator'
 import { ThemeToggle } from './components/ThemeToggle'
+import { ReportGeneratingOverlay } from './components/ReportGeneratingOverlay'
 
 export default function App() {
   const [studentName, setStudentName] = useState('')
   const [projectName, setProjectName] = useState('')
   const [started, setStarted] = useState(false)
 
-  const { session, videoElement, startInterview, stopInterview } = useInterview()
+  const { session, videoElement, startInterview, stopInterview, stopListening } = useInterview()
 
   const handleStart = async () => {
     if (!studentName.trim() || !projectName.trim()) return
@@ -76,7 +77,7 @@ export default function App() {
         </div>
       )}
 
-      {started && session.status !== 'complete' && (
+      {started && session.status !== 'complete' && !(session.status === 'evaluating' && session.currentQuestionIndex >= 4) && (
         <div className="interview-screen">
           <header className="interview-header">
             <div className="header-left">
@@ -94,9 +95,13 @@ export default function App() {
           </header>
           <div className="interview-body">
             <ScreenCapture videoElement={videoElement} />
-            <InterviewChat session={session} />
+            <InterviewChat session={session} onStopListening={stopListening} />
           </div>
         </div>
+      )}
+
+      {started && session.status === 'evaluating' && session.currentQuestionIndex >= 4 && (
+        <ReportGeneratingOverlay />
       )}
 
       {session.status === 'complete' && session.report && (

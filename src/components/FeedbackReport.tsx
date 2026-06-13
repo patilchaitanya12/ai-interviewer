@@ -51,6 +51,11 @@ export function FeedbackReport({ report, onReset }: Props) {
   const handleDownloadPDF = async () => {
     if (!reportRef.current) return
     setDownloading(true)
+
+    // Hide action buttons during capture
+    const actions = document.querySelector('.report-actions') as HTMLElement | null
+    if (actions) actions.style.visibility = 'hidden'
+
     try {
       const node = reportRef.current
       const canvas = await html2canvas(node, {
@@ -86,6 +91,7 @@ export function FeedbackReport({ report, onReset }: Props) {
     } catch (err) {
       console.error('PDF export failed:', err)
     } finally {
+      if (actions) actions.style.visibility = 'visible'
       setDownloading(false)
     }
   }
@@ -96,41 +102,49 @@ export function FeedbackReport({ report, onReset }: Props) {
 
         {/* Header */}
         <div className="report-header">
-          <div>
-            <h2>Interview Report</h2>
-            <p className="report-meta">
-              {report.studentName} · {report.projectName} ·{' '}
-              {new Date(report.generatedAt).toLocaleTimeString()}
-            </p>
+          <div className="report-title-block">
+            <div className="report-icon">📋</div>
+            <div>
+              <h2>Interview Report</h2>
+              <p className="report-meta">
+                <span className="report-meta-name">{report.studentName}</span>
+                <span className="report-meta-dot">•</span>
+                <span>{report.projectName}</span>
+                <span className="report-meta-dot">•</span>
+                <span>{new Date(report.generatedAt).toLocaleString()}</span>
+              </p>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="report-actions">
             <button
-              className="start-btn small"
+              className="start-btn small outline"
               onClick={handleDownloadPDF}
               disabled={downloading}
             >
               {downloading ? 'Generating…' : '⬇ Download PDF'}
             </button>
             <button className="start-btn small" onClick={onReset}>
-              New Interview
+              + New Interview
             </button>
           </div>
         </div>
 
         {/* Total Score */}
         <div className="total-score-card">
-          <div className="total-score-number" style={{ color: gradeColor }}>
-            {report.totalScore}
+          <div className="total-score-ring" style={{ borderColor: gradeColor }}>
+            <div className="total-score-number" style={{ color: gradeColor }}>
+              {report.totalScore}
+            </div>
+            <div className="total-score-label">/ 100</div>
           </div>
-          <div className="total-score-label">out of 100</div>
-          <div className="grade-badge" style={{ color: gradeColor, borderColor: gradeColor }}>
+          <div className="grade-badge" style={{ color: gradeColor, borderColor: gradeColor, background: `${gradeColor}14` }}>
             {grade}
           </div>
         </div>
 
         {/* Score Breakdown */}
         <div className="report-card">
-          <h3>Score Breakdown</h3>
+          <h3><span className="card-icon">📊</span> Score Breakdown</h3>
           <div className="score-bars">
             {Object.entries(report.scores).map(([key, score]) => (
               <ScoreBar key={key} label={SCORE_LABELS[key]} score={score} />
@@ -141,7 +155,7 @@ export function FeedbackReport({ report, onReset }: Props) {
         {/* Strengths & Improvements */}
         <div className="report-grid">
           <div className="report-card">
-            <h3>✓ Strengths</h3>
+            <h3><span className="card-icon success">✓</span> Strengths</h3>
             <ul className="feedback-list">
               {report.strengths.map((s, i) => (
                 <li key={i} className="feedback-item success">{s}</li>
@@ -149,7 +163,7 @@ export function FeedbackReport({ report, onReset }: Props) {
             </ul>
           </div>
           <div className="report-card">
-            <h3>↑ Improvements</h3>
+            <h3><span className="card-icon warning">↑</span> Improvements</h3>
             <ul className="feedback-list">
               {report.improvements.map((s, i) => (
                 <li key={i} className="feedback-item warning">{s}</li>
@@ -160,13 +174,13 @@ export function FeedbackReport({ report, onReset }: Props) {
 
         {/* Summary */}
         <div className="report-card">
-          <h3>Summary</h3>
+          <h3><span className="card-icon">📝</span> Summary</h3>
           <p className="summary-text">{report.summary}</p>
         </div>
 
         {/* Q&A Breakdown */}
         <div className="report-card">
-          <h3>Question Breakdown</h3>
+          <h3><span className="card-icon">💬</span> Question Breakdown</h3>
           <div className="qa-list">
             {report.questionAnswers.map((qa, i) => (
               <div key={i} className="qa-item">
@@ -174,14 +188,16 @@ export function FeedbackReport({ report, onReset }: Props) {
                   <span className="qa-num">Q{i + 1}</span>
                   <span className="qa-score" style={{
                     color: qa.score >= 18 ? 'var(--success)' :
-                           qa.score >= 12 ? 'var(--warning)' : 'var(--danger)'
+                           qa.score >= 12 ? 'var(--warning)' : 'var(--danger)',
+                    background: qa.score >= 18 ? 'var(--success-glow)' :
+                                qa.score >= 12 ? 'var(--warning-glow)' : 'var(--danger-glow)'
                   }}>
                     {qa.score}/25
                   </span>
                 </div>
                 <p className="qa-question">{qa.question.text}</p>
-                <p className="qa-answer">{qa.answer.transcript}</p>
-                <p className="qa-feedback">💬 {qa.feedback}</p>
+                <p className="qa-answer">"{qa.answer.transcript}"</p>
+                <p className="qa-feedback">💡 {qa.feedback}</p>
               </div>
             ))}
           </div>

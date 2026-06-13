@@ -43,11 +43,15 @@ export function useInterview() {
     }
   }, [updateSession])
 
+  const stopListening = useCallback(() => {
+    serviceRef.current?.sttService.stopAndResolve()
+  }, [])
+
   const stopInterview = useCallback(() => {
     serviceRef.current?.cleanup()
     setSession(initialSession)
     setVideoElement(null)
   }, [])
 
-  return { session, videoElement, startInterview, stopInterview }
+  return { session, videoElement, startInterview, stopInterview, stopListening }
 }
