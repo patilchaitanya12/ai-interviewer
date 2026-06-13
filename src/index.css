@@ -802,3 +802,22 @@ html.light .interviewer-bubble {
   font-size: 0.8rem;
   color: var(--muted);
 }
+
+/* ── Border Consistency Fix ── */
+.interview-header,
+.panel-header {
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.screen-capture-panel {
+  border-right: 1px solid var(--border) !important;
+}
+
+.interview-body {
+  border-top: none !important;
+}
+
+.screen-capture-panel .panel-header,
+.chat-panel .panel-header {
+  border-bottom: 1px solid var(--border) !important;
+}

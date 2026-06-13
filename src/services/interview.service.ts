@@ -126,7 +126,7 @@ export class InterviewService {
 
       let transcript = ''
       try {
-        transcript = await this.stt.listen(4000, 60000)
+        transcript = await this.stt.listen(6000, 90000)
         this.log(`💬 Answer received: "${transcript.slice(0, 60)}..."`)
       } catch {
         transcript = 'No answer provided'
