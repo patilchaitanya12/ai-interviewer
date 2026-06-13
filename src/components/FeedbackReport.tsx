@@ -1,3 +1,6 @@
+import { useRef, useState } from 'react'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 import type { FeedbackReport as FeedbackReportType } from '../types/interview.types'
 
 interface Props {
@@ -32,6 +35,9 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 }
 
 export function FeedbackReport({ report, onReset }: Props) {
+  const reportRef = useRef<HTMLDivElement>(null)
+  const [downloading, setDownloading] = useState(false)
+
   const grade =
     report.totalScore >= 80 ? 'Excellent' :
     report.totalScore >= 60 ? 'Good' :
@@ -42,9 +48,51 @@ export function FeedbackReport({ report, onReset }: Props) {
     report.totalScore >= 60 ? 'var(--accent)' :
     report.totalScore >= 40 ? 'var(--warning)' : 'var(--danger)'
 
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return
+    setDownloading(true)
+    try {
+      const node = reportRef.current
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: getComputedStyle(document.body).backgroundColor || '#0a0a0f',
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+
+      const imgWidth = pageWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      const fileName = `Interview_Report_${report.studentName.replace(/\s+/g, '_')}_${report.projectName.replace(/\s+/g, '_')}.pdf`
+      pdf.save(fileName)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="report-screen">
-      <div className="report-container">
+      <div className="report-container" ref={reportRef}>
 
         {/* Header */}
         <div className="report-header">
@@ -55,9 +103,18 @@ export function FeedbackReport({ report, onReset }: Props) {
               {new Date(report.generatedAt).toLocaleTimeString()}
             </p>
           </div>
-          <button className="start-btn small" onClick={onReset}>
-            New Interview
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              className="start-btn small"
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+            >
+              {downloading ? 'Generating…' : '⬇ Download PDF'}
+            </button>
+            <button className="start-btn small" onClick={onReset}>
+              New Interview
+            </button>
+          </div>
         </div>
 
         {/* Total Score */}

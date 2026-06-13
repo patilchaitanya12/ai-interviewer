@@ -4,6 +4,7 @@ import { ScreenCapture } from './components/ScreenCapture'
 import { InterviewChat } from './components/InterviewChat'
 import { FeedbackReport } from './components/FeedbackReport'
 import { StatusIndicator } from './components/StatusIndicator'
+import { ThemeToggle } from './components/ThemeToggle'
 
 export default function App() {
   const [studentName, setStudentName] = useState('')
@@ -27,16 +28,17 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* ── Landing / Setup Screen ── */}
       {!started && (
         <div className="setup-screen">
+          <div style={{ position: 'absolute', top: 20, right: 20 }}>
+            <ThemeToggle />
+          </div>
           <div className="setup-card">
             <div className="logo">
               <span className="logo-icon">⬡</span>
               <h1>AI Interviewer</h1>
               <p>Adaptive technical interviews powered by local AI</p>
             </div>
-
             <div className="form">
               <div className="field">
                 <label>Student Name</label>
@@ -64,7 +66,6 @@ export default function App() {
                 Begin Interview
               </button>
             </div>
-
             <div className="info-chips">
               <span className="chip">🎤 Voice Questions</span>
               <span className="chip">👁 Screen Analysis</span>
@@ -75,7 +76,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Active Interview Screen ── */}
       {started && session.status !== 'complete' && (
         <div className="interview-screen">
           <header className="interview-header">
@@ -88,10 +88,10 @@ export default function App() {
               <span className="progress">
                 Question {Math.min(session.currentQuestionIndex + 1, 5)} / 5
               </span>
+              <ThemeToggle />
               <button className="stop-btn" onClick={handleReset}>End</button>
             </div>
           </header>
-
           <div className="interview-body">
             <ScreenCapture videoElement={videoElement} />
             <InterviewChat session={session} />
@@ -99,7 +99,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Report Screen ── */}
       {session.status === 'complete' && session.report && (
         <FeedbackReport report={session.report} onReset={handleReset} />
       )}

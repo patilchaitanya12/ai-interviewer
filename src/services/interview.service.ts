@@ -20,11 +20,18 @@ export class InterviewService {
   private ocrInterval: ReturnType<typeof setInterval> | null = null
   private videoRef: HTMLVideoElement | null = null
   private onStateChange: (session: Partial<InterviewSession>) => void
+  private logs: string[] = []
 
   constructor(onStateChange: (session: Partial<InterviewSession>) => void) {
     this.tts = new TTSService()
     this.stt = new STTService()
     this.onStateChange = onStateChange
+  }
+
+  private log(msg: string) {
+    const entry = `[${new Date().toLocaleTimeString()}] ${msg}`
+    this.logs = [...this.logs, entry]
+    this.onStateChange({ logs: this.logs })
   }
 
   async startScreenCapture(): Promise<HTMLVideoElement> {
@@ -53,6 +60,7 @@ export class InterviewService {
       const { text, confidence } = await OCRService.extractTextFromFrame(this.videoRef)
       const cleaned = OCRService.cleanText(text)
       if (OCRService.isUsable(cleaned, confidence)) {
+        this.log(`👁 OCR captured ${cleaned.length} chars (confidence: ${confidence.toFixed(0)}%)`)
         onContext(cleaned)
       }
     }, OCR_INTERVAL_MS)
@@ -74,7 +82,11 @@ export class InterviewService {
     const questionAnswers: QuestionAnswer[] = []
     let ocrContext = ''
 
-    this.startOCRLoop((text) => { ocrContext = text })
+    this.log(`🚀 Interview started for ${studentName} — ${projectName}`)
+    this.startOCRLoop((text) => {
+      ocrContext = text
+      this.onStateChange({ ocrContext: text })
+    })
 
     for (let i = 0; i < TOTAL_QUESTIONS; i++) {
       const previousQAs = questionAnswers
@@ -82,10 +94,13 @@ export class InterviewService {
         .join('\n\n')
 
       this.onStateChange({ status: 'loading', currentQuestionIndex: i })
+      this.log(`⏳ Question ${i + 1}: waiting for OCR context...`)
+
       const questionText = await LLMService.generateQuestion(
         ocrContext || 'Student is presenting their project',
         i,
-        previousQAs
+        previousQAs,
+        (msg) => this.log(msg)
       )
 
       const question: Question = {
@@ -95,15 +110,26 @@ export class InterviewService {
         askedAt: Date.now()
       }
 
-      this.onStateChange({ status: 'questioning' })
+      // Push the question to chat state IMMEDIATELY, before TTS speaks
+      const currentQuestions = [...questionAnswers.map(qa => qa.question), question]
+      this.onStateChange({
+        status: 'questioning',
+        questions: currentQuestions,
+      })
+
+      this.log(`🗣 Speaking: "${questionText.slice(0, 60)}..."`)
       await this.tts.speak(questionText)
 
       this.onStateChange({ status: 'listening' })
+      this.log(`👂 Listening for student answer...`)
+
       let transcript = ''
       try {
         transcript = await this.stt.listen()
+        this.log(`💬 Answer received: "${transcript.slice(0, 60)}..."`)
       } catch {
         transcript = 'No answer provided'
+        this.log(`⚠️ No answer detected`)
       }
 
       const answer: Answer = {
@@ -116,12 +142,12 @@ export class InterviewService {
       const { score, feedback } = await LLMService.evaluateAnswer(
         questionText,
         transcript,
-        ocrContext
+        ocrContext,
+        (msg) => this.log(msg)
       )
 
       questionAnswers.push({ question, answer, score, feedback })
 
-      // Update answers in session state for chat display
       this.onStateChange({
         questions: questionAnswers.map(qa => qa.question),
         answers: questionAnswers.map(qa => qa.answer),
@@ -129,13 +155,18 @@ export class InterviewService {
     }
 
     this.stopOCRLoop()
+    this.log(`📊 All questions done, generating report...`)
 
     this.onStateChange({ status: 'evaluating' })
     const qaSummary = questionAnswers
       .map(qa => `Q: ${qa.question.text}\nA: ${qa.answer.transcript}\nScore: ${qa.score}/25`)
       .join('\n\n')
 
-    const reportData = await LLMService.generateReport(qaSummary, projectName)
+    const reportData = await LLMService.generateReport(
+      qaSummary,
+      projectName,
+      (msg) => this.log(msg)
+    )
 
     const scores: EvaluationScores = {
       technicalDepth: reportData.scores.technicalDepth,
@@ -158,6 +189,7 @@ export class InterviewService {
       generatedAt: Date.now()
     }
 
+    this.log(`✅ Report complete! Total score: ${totalScore}/100`)
     this.onStateChange({ status: 'complete', report })
     return report
   }
