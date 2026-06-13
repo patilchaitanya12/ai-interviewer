@@ -1,20 +1,14 @@
-//  Screen & OCR
-
 export interface OCRResult {
   text: string
   confidence: number
   timestamp: number
 }
 
-//  Speech
-
 export interface SpeechResult {
   transcript: string
   isFinal: boolean
   timestamp: number
 }
-
-//  Interview
 
 export type InterviewStatus =
   | 'idle'
@@ -28,7 +22,7 @@ export type InterviewStatus =
 export interface Question {
   id: number
   text: string
-  context: string        // what OCR text triggered this question
+  context: string
   askedAt: number
 }
 
@@ -41,23 +35,21 @@ export interface Answer {
 export interface QuestionAnswer {
   question: Question
   answer: Answer
-  score: number          // 0-25 per question, 5 questions = 100 total
+  score: number
   feedback: string
 }
 
-//  Evaluation
-
 export interface EvaluationScores {
-  technicalDepth: number       // 0-25
-  clarityOfExplanation: number // 0-25
-  originality: number          // 0-25
-  implementationUnderstanding: number // 0-25
+  technicalDepth: number
+  clarityOfExplanation: number
+  originality: number
+  implementationUnderstanding: number
 }
 
 export interface FeedbackReport {
   studentName: string
   projectName: string
-  totalScore: number           // 0-100
+  totalScore: number
   scores: EvaluationScores
   questionAnswers: QuestionAnswer[]
   strengths: string[]
@@ -66,14 +58,13 @@ export interface FeedbackReport {
   generatedAt: number
 }
 
-//  Interview Session
-
 export interface InterviewSession {
   status: InterviewStatus
   currentQuestionIndex: number
-  totalQuestions: number       // fixed at 5
-  ocrContext: string           
+  totalQuestions: number
+  ocrContext: string
   questions: Question[]
   answers: Answer[]
+  logs: string[]           
   report: FeedbackReport | null
 }

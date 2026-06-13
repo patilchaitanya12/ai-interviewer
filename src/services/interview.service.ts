@@ -12,7 +12,7 @@ import type {
 } from '../types/interview.types'
 
 const TOTAL_QUESTIONS = 5
-const OCR_INTERVAL_MS = 5000 // capture screen every 5 seconds
+const OCR_INTERVAL_MS = 5000
 
 export class InterviewService {
   private tts: TTSService
@@ -27,12 +27,16 @@ export class InterviewService {
     this.onStateChange = onStateChange
   }
 
-  // Screen Capture
-
   async startScreenCapture(): Promise<HTMLVideoElement> {
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: 5 }, // low framerate,as we are going with ss
-      audio: false
+      video: {
+        frameRate: 5,
+        // @ts-ignore — non-standard but supported in Chrome
+        displaySurface: 'window',
+      },
+      audio: false,
+      // @ts-ignore — Chrome-specific hint to prefer window picker
+      preferCurrentTab: false,
     })
 
     const video = document.createElement('video')
@@ -42,8 +46,6 @@ export class InterviewService {
     this.videoRef = video
     return video
   }
-
-  // OCR Loop 
 
   startOCRLoop(onContext: (text: string) => void) {
     this.ocrInterval = setInterval(async () => {
@@ -63,8 +65,6 @@ export class InterviewService {
     }
   }
 
-  // Core Interview Loop
-
   async runInterview(
     studentName: string,
     projectName: string,
@@ -74,16 +74,13 @@ export class InterviewService {
     const questionAnswers: QuestionAnswer[] = []
     let ocrContext = ''
 
-    // Start capturing screen context in background
     this.startOCRLoop((text) => { ocrContext = text })
 
     for (let i = 0; i < TOTAL_QUESTIONS; i++) {
-      // 1. Build previous QA context string for LLM
       const previousQAs = questionAnswers
         .map(qa => `Q: ${qa.question.text}\nA: ${qa.answer.transcript}`)
         .join('\n\n')
 
-      // 2. Generate question
       this.onStateChange({ status: 'loading', currentQuestionIndex: i })
       const questionText = await LLMService.generateQuestion(
         ocrContext || 'Student is presenting their project',
@@ -98,11 +95,9 @@ export class InterviewService {
         askedAt: Date.now()
       }
 
-      // 3. Speak question aloud
       this.onStateChange({ status: 'questioning' })
       await this.tts.speak(questionText)
 
-      // 4. Listen to student answer
       this.onStateChange({ status: 'listening' })
       let transcript = ''
       try {
@@ -117,7 +112,6 @@ export class InterviewService {
         answeredAt: Date.now()
       }
 
-      // 5. Evaluate answer
       this.onStateChange({ status: 'evaluating' })
       const { score, feedback } = await LLMService.evaluateAnswer(
         questionText,
@@ -126,12 +120,16 @@ export class InterviewService {
       )
 
       questionAnswers.push({ question, answer, score, feedback })
+
+      // Update answers in session state for chat display
+      this.onStateChange({
+        questions: questionAnswers.map(qa => qa.question),
+        answers: questionAnswers.map(qa => qa.answer),
+      })
     }
 
-    // 6. Stop OCR loop
     this.stopOCRLoop()
 
-    // 7. Generate final report
     this.onStateChange({ status: 'evaluating' })
     const qaSummary = questionAnswers
       .map(qa => `Q: ${qa.question.text}\nA: ${qa.answer.transcript}\nScore: ${qa.score}/25`)
@@ -163,8 +161,6 @@ export class InterviewService {
     this.onStateChange({ status: 'complete', report })
     return report
   }
-
-  // Cleanup
 
   cleanup() {
     this.stopOCRLoop()

@@ -9,6 +9,7 @@ const initialSession: InterviewSession = {
   ocrContext: '',
   questions: [],
   answers: [],
+  logs: [],
   report: null
 }
 
@@ -17,7 +18,6 @@ export function useInterview() {
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null)
   const serviceRef = useRef<InterviewService | null>(null)
 
-  // Partial state update which merges changes into existing session
   const updateSession = useCallback((partial: Partial<InterviewSession>) => {
     setSession(prev => ({ ...prev, ...partial }))
   }, [])
@@ -27,21 +27,15 @@ export function useInterview() {
     projectName: string
   ) => {
     try {
-      // Create service instance with state change callback
       serviceRef.current = new InterviewService(updateSession)
-
-      // Start screen capture
       updateSession({ status: 'capturing' })
       const video = await serviceRef.current.startScreenCapture()
       setVideoElement(video)
-
-      // Run full interview, get report back
       const report: FeedbackReport = await serviceRef.current.runInterview(
         studentName,
         projectName,
         video
       )
-
       updateSession({ status: 'complete', report })
     } catch (err) {
       console.error('Interview error:', err)
@@ -55,10 +49,5 @@ export function useInterview() {
     setVideoElement(null)
   }, [])
 
-  return {
-    session,
-    videoElement,
-    startInterview,
-    stopInterview
-  }
+  return { session, videoElement, startInterview, stopInterview }
 }
