@@ -4,20 +4,20 @@ export class STTService {
 
   constructor() {
     const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition //SpeechRecognition is for standard and webkitSpeechRecognition is for Chrome
+      window.SpeechRecognition || window.webkitSpeechRecognition
 
     if (!SpeechRecognition) {
-      console.error('SpeechRecognition not supported in this browser')
+      console.error('SpeechRecognition not supported')
       return
     }
 
     this.recognition = new SpeechRecognition()
-    this.recognition.continuous = true
+    this.recognition.continuous = false  // changed to false — stops cleanly after one response
     this.recognition.interimResults = true
     this.recognition.lang = 'en-US'
+    this.recognition.maxAlternatives = 1
   }
 
-  // Returns a promise that resolves when student stops speaking
   listen(): Promise<string> {
     return new Promise((resolve, reject) => {
       if (!this.recognition) {
@@ -26,32 +26,44 @@ export class STTService {
       }
 
       let finalTranscript = ''
+      let silenceTimer: ReturnType<typeof setTimeout> | null = null
 
-      this.recognition.onresult = (event) => {
-        let interim = ''
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i]
-          if (result.isFinal) {
-            finalTranscript += result[0].transcript
-          } else {
-            interim += result[0].transcript
-          }
-        }
+      const done = () => {
+        if (silenceTimer) clearTimeout(silenceTimer)
+        this.recognition!.onresult = null
+        this.recognition!.onend = null
+        this.recognition!.onerror = null
+        resolve(finalTranscript.trim() || 'No answer provided')
       }
 
-      // Auto-stop after 3 seconds of silence
-      this.recognition.onspeechend = () => {
-        this.recognition!.stop()
+      this.recognition.onresult = (event) => {
+        // Reset silence timer on every result
+        if (silenceTimer) clearTimeout(silenceTimer)
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' '
+          }
+        }
+
+        // Auto-resolve after 2.5s of silence post speech
+        silenceTimer = setTimeout(() => {
+          this.recognition!.stop()
+        }, 2500)
       }
 
       this.recognition.onend = () => {
         this.isListening = false
-        resolve(finalTranscript.trim() || 'No answer provided')
+        done()
       }
 
       this.recognition.onerror = (event) => {
         this.isListening = false
-        reject(event.error)
+        if (event.error === 'no-speech') {
+          resolve('No answer provided')
+        } else {
+          reject(event.error)
+        }
       }
 
       this.isListening = true
